@@ -3,6 +3,28 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot
 from matplotlib.animation import FuncAnimation
 
+## setup CappedTreasureEmissions mechanism
+## run simulations with vairous parameters
+
+
+class MasterOfTreasureInflation:
+
+    def __init__(self):
+        # Balances for net treasures created and broken at a given point in time
+        self.created_treasures = {
+            't1': 0,
+            't2': 0,
+            't3': 0,
+            't4': 0,
+            't5': 0,
+        }
+        self.broken_treasures = {
+            't1': 0,
+            't2': 0,
+            't3': 0,
+            't4': 0,
+            't5': 0,
+        }
 
 
 def treasure_inflation_rate(
@@ -47,7 +69,7 @@ def init_plot(i=0):
     return
 
 
-def draw_legion_paths(i):
+def simulate_fn(i):
 
     num_craftor = 8 + i * 8 # each i-frame is 8 craftors
     num_summoners = 16 + i * 16 # each i-frame is 8 craftors
@@ -153,19 +175,19 @@ def draw_legion_paths(i):
 
 
 
-def run_legion_growth_simulation():
+def simulate_capped_treasure_emissions():
 
     global fig
     global ax2
     global ax1
 
     fig, (ax1, ax2) = plt.subplots(2)
-    fig.suptitle('Dynamic Legion Summoning Rates')
+    fig.suptitle('Variable Treasure Drop Rates')
     fig.set_size_inches(12, 9)
 
     ani = FuncAnimation(
         fig,
-        draw_legion_paths,
+        simulate_fn,
         frames=FRAMES,
         interval=100,
         repeat=False,
@@ -175,7 +197,7 @@ def run_legion_growth_simulation():
     plt.subplots_adjust(left=0.08, right=0.7, top=0.9, bottom=0.1, hspace=0.4)
     plt.show()
 
-run_legion_growth_simulation()
+simulate_capped_treasure_emissions()
 
 
 
