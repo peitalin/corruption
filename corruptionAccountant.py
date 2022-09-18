@@ -1,32 +1,11 @@
 
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import plot
-from matplotlib.animation import FuncAnimation
-
-from colors import brown, offwhite, grey, gold, darkblue, lightblue
-from colors import line_styles, line_colors
 
 
-# initialize plot variables, overwritten on 1st pass of simulation
-ax1 = 1
-ax2 = 1
-ax3 = 1
-
-# Trove KPIs influence a harvester's mood, causing the harvester battlemap to favor particular collections
-# Trove KPIs influence weather in a harvester game format
-
-
-
-
-
-## x-axis is hours
-hours = []
-# each frame is 1 hr
-FRAMES = 1000
 
 class CorruptionAccountant:
     """ Corruption minting/breaking accounting history object """
+
 
     def __init__(self):
         self.max_corruption = 1_000_000
@@ -63,7 +42,7 @@ class CorruptionAccountant:
             'h9': [],
         }
         # base rate per hour
-        base_rate = 6000
+        base_rate = 4000
         self.corruption_rate = {
             "questing": base_rate,
             "crafting": base_rate,
@@ -122,11 +101,14 @@ class CorruptionAccountant:
         self.y_dark_prisms_cumulative = {
             0: 0,
         }
-        self.y_claimable_corruption = {
-            "total": []
+        self.y_forgeable_corruption = {
+            0: 0,
         }
-        self.y_claimed_corruption = {
-            "total": []
+        self.y_crafted_corruption = {
+            0: 0,
+        }
+        self.y_cumulative_crafted_corruption = {
+            0: 0,
         }
 
 
@@ -184,10 +166,7 @@ class CorruptionAccountant:
             n = base_rate * 1
         else:
             n = base_rate
-
-        print("N : ", n)
         return n
-
 
 
     def emitCorruption(self, hour, initial_corruption_balance=90_000):
@@ -204,6 +183,16 @@ class CorruptionAccountant:
                 self.y_corruption[k].append(prev_value + rate)
             else:
                 self.y_corruption[k].append(rate)
+
+
+    def emitForgeableCorruption(self, hour, rate=8000):
+
+        if hour == 0:
+            prev_value = 0
+        else:
+            prev_value = self.y_forgeable_corruption[hour-1]
+
+        self.y_forgeable_corruption[hour] = prev_value + rate
 
 
     def _removeCorruption(self, k):
@@ -229,13 +218,58 @@ class CorruptionAccountant:
                     self.maybeDropDarkPrism(hour, current_corruption)
 
 
-    def addPrismEntryForHour(self, hour):
+    def forgeCorruption(self, hour, legionType="gen0_common"):
+
+        percentForgedByLegion = {
+            'gen0_1_1': 0.07, # 1/1 7%
+            'gen0_rare': 0.03, # all-class 3%
+            'gen0_uncommon': 0.02, # Assasin etc 2%
+            'gen0_special': 0.0175, # includes riverman, Numeraire 1.75%
+            'gen0_common': 0.015, # commons 1.5%
+            'gen1_rare': 0.01, # 1.1%
+            'gen1_uncommon': 0.0105, # 1.05%
+            'gen1_common': 0.01, # 1%
+        }
+
+        percentForgeable = percentForgedByLegion[legionType]
+
+        if hour not in self.y_forgeable_corruption.keys():
+            print("hour entry not in y_forgeable_corruption")
+            return
+        else:
+            if hour not in self.y_crafted_corruption.keys():
+                self.y_crafted_corruption[hour] = 0
+            else:
+                totalAmountForgeable = self.y_forgeable_corruption[hour]
+                amountForged = percentForgeable * totalAmountForgeable
+
+                self.y_forgeable_corruption[hour] -= amountForged
+                self.y_crafted_corruption[hour] += amountForged
+                self.y_cumulative_crafted_corruption[hour] += amountForged
+
+
+    def addAccountingEntriesForHour(self, hour):
         # check entry exists, add if need be
+
+        # time-series
         if hour not in self.y_dark_prisms.keys():
             self.y_dark_prisms[hour] = 0
 
         if hour not in self.y_prisms.keys():
             self.y_prisms[hour] = 0
+
+        if hour not in self.y_forgeable_corruption.keys():
+            self.y_forgeable_corruption[hour] = 0
+
+        if hour not in self.y_crafted_corruption.keys():
+            self.y_crafted_corruption[hour] = 0
+
+        # cumulative time-series
+        if hour not in self.y_cumulative_crafted_corruption.keys():
+            if hour == 0:
+                self.y_cumulative_crafted_corruption[hour] = 0
+            else:
+                self.y_cumulative_crafted_corruption[hour] = self.y_cumulative_crafted_corruption[hour-1]
 
         if hour not in self.y_dark_prisms_cumulative.keys():
             if hour == 0:
@@ -248,6 +282,7 @@ class CorruptionAccountant:
                 self.y_prisms_cumulative[hour] = 0
             else:
                 self.y_prisms_cumulative[hour] = self.y_dark_prisms_cumulative[hour-1]
+
 
     def _createPrism(self, hour=0, c=0):
         if hour not in self.y_prisms.keys():
@@ -274,133 +309,11 @@ class CorruptionAccountant:
             else:
                 self.y_dark_prisms[hour] = self.y_dark_prisms[hour] + 1
                 self.y_dark_prisms_cumulative[hour] = self.y_dark_prisms_cumulative[hour] + 1
+
+            self.forgeCorruption(hour)
         else:
+            # no Dark Prism created from Prism, skip
             return None
-
-
-
-
-
-
-def init_plot(i=0):
-    # do nothing, prevents FuncAnim calling initialization twice
-    return
-
-
-corrAccountant = CorruptionAccountant()
-
-
-def simulation_fn(i):
-
-    hour = i # each i-frame is 1 hr
-    hours.append(hour)
-
-    # clear plots to redraw
-    ax1.clear()
-    ax2.clear()
-    ax3.clear()
-
-    corrAccountant.emitCorruption(hour)
-    corrAccountant.addPrismEntryForHour(hour)
-
-    for k in corrAccountant.y_structures:
-
-        corrAccountant.maybeRemoveCorruptionNTimes(hour, k)
-
-        #### Plot 1 - corruption
-        ax1.plot(
-            hours,
-            corrAccountant.y_corruption[k],
-            alpha=0.5,
-            label="{k}".format(k=k),
-            color=line_colors[k],
-        )
-
-
-    ## Plot 2 - Prisms Burnt, and Dark Prisms created
-    ax2.plot(
-        hours,
-        corrAccountant.y_prisms.values(),
-        label="Prisms Burnt",
-        color='royalblue',
-        linestyle="--",
-    )
-    ax2.plot(
-        hours,
-        corrAccountant.y_dark_prisms.values(),
-        label="Dark Prisms",
-        color='crimson',
-        linestyle="--",
-    )
-    ax2.set(xlabel='', ylabel='#Prisms and #Dark_Prisms')
-
-    #### Plot 3 - Users MAGIC yield in the Mine (APR)
-    ax3.plot(
-        hours,
-        corrAccountant.y_prisms_cumulative.values(),
-        label="Total Prisms Burnt",
-        color='royalblue',
-        linestyle=":",
-    )
-    ax3.plot(
-        hours,
-        corrAccountant.y_dark_prisms_cumulative.values(),
-        label="Total Dark Prisms Made",
-        color='crimson',
-        linestyle=":",
-    )
-    ax3.set(xlabel='hours', ylabel='#Prisms and #Dark_Prisms')
-
-    ax1.set_title('Corruption in Buildings', size=10, color=gold)
-    ax2.set_title('Prisms Burnt & Dark Prisms Created', size=10, color=gold)
-    ax3.set_title('Cumulative Prisms & Dark Prisms', size=10, color=gold)
-
-    ax1.legend(bbox_to_anchor=(1.3, 1.1), loc="upper right")
-    ax2.legend(
-        bbox_to_anchor=(1.2, 0.5),
-        loc="lower center",
-    )
-    ax3.legend(bbox_to_anchor=(1.2, 0.5), loc="lower center")
-
-
-
-
-
-
-
-def run_corruption_simulation():
-
-    global fig
-    global ax1
-    global ax2
-    global ax3
-
-    # fig, (ax1, ax2, ax3) = plt.subplots(3, facecolor=darkblue)
-    # fig.suptitle(''.format(), color=gold)
-
-    fig, (ax1, ax2, ax3) = plt.subplots(3)
-    fig.suptitle(''.format())
-    fig.set_size_inches(12, 9)
-
-    ani = FuncAnimation(
-        fig,
-        simulation_fn,
-        frames=FRAMES,
-        interval=100,
-        repeat=False,
-        init_func=init_plot,
-    )
-
-    plt.subplots_adjust(left=0.08, right=0.7, top=0.9, bottom=0.1, hspace=0.3)
-    # ax2.set_facecolor(lightblue)
-    # ax3.set_facecolor(lightblue)
-
-    plt.show()
-
-
-run_corruption_simulation()
-
-
 
 
 
