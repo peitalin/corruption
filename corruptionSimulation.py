@@ -5,8 +5,8 @@ from matplotlib.pyplot import plot
 from matplotlib.animation import FuncAnimation
 
 from corruptionAccountant import CorruptionAccountant
-from colors import brown, offwhite, grey, gold, darkblue, lightblue
-from colors import line_styles, line_colors
+from styles import brown, offwhite, grey, gold, darkblue, lightblue
+from styles import line_styles, line_colors
 
 
 # initialize plot variables, overwritten on 1st pass of simulation

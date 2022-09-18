@@ -14,9 +14,17 @@ line_styles = {
     'h8': ':',
     'h9': ':',
 }
+
+colors = [
+    'crimson',
+    'mediumorchid',
+    'royalblue',
+    'black',
+]
+
 line_colors = {
-    "questing": 'mediumorchid',
-    "crafting": 'royalblue',
+    "questing": colors[1],
+    "crafting": colors[2],
     "summoning": 'mediumseagreen',
     "forbidden_crafts": 'gold',
     'h1': 'black',
