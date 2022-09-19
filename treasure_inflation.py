@@ -12,12 +12,14 @@ from styles import colors
 class MasterOfTreasureInflation:
 
     def __init__(self):
+        rateMultiplier = 1.5
+        recruitsT5 = 5000
         self.treasure_rates_per_month = {
-            't1': 1000,
-            't2': 2000,
-            't3': 8000,
-            't4': 14000,
-            't5': 20000
+            't1': 1000 * rateMultiplier,
+            't2': 2000 * rateMultiplier,
+            't3': 8000 * rateMultiplier,
+            't4': 14000 * rateMultiplier,
+            't5': 20000 * rateMultiplier + recruitsT5,
         }
         # Balances for net treasure fragments created and broken at a given point in time
         self.dropped_treasures = {
@@ -130,8 +132,8 @@ class MasterOfTreasureInflation:
             if maybe_drop_loot(t2_droprate):
                 self._dropLoot(day, 't2')
 
-            if maybe_drop_loot(t2_droprate):
-                self._dropLoot(day, 't2')
+            if maybe_drop_loot(t1_droprate):
+                self._dropLoot(day, 't1')
         else:
             print("Invalid section: {}".format(section))
 
@@ -241,7 +243,7 @@ def init_plot(i=0):
 def simulate_fn(i):
 
     day = i
-    section = 2 # questing section
+    section = 3 # questing section
 
     global LEGIONS_QUESTING
     if day > 50 and day <= 150:
@@ -268,12 +270,18 @@ def simulate_fn(i):
     ###############################################################
     ## First plot the full range of the drop rates
     ## full plots for droprates, varying k = number of treasures in pool
-    I = np.linspace(0, 5000, 5001)
+    I = np.linspace(0, 12000, 12001)
     droprate_graph_bottom = [treasure_drop_rate(N=i, k=100) for i in I]
-    droprate_graph_1 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t5']) for i in I]
-    droprate_graph_2 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t4']) for i in I]
-    droprate_graph_3 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t3']) for i in I]
     droprate_graph_top = [treasure_drop_rate(N=i, k=20000) for i in I]
+
+    if section == 2 or section == 1:
+        droprate_graph_1 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t5']) for i in I]
+        droprate_graph_2 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t4']) for i in I]
+        droprate_graph_3 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t3']) for i in I]
+    elif section == 3:
+        droprate_graph_1 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t3']) for i in I]
+        droprate_graph_2 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t2']) for i in I]
+        droprate_graph_3 = [treasure_drop_rate(N=i, k=m.treasures_in_pool[day]['t1']) for i in I]
 
     ax1.plot(I, droprate_graph_top , color='black', alpha=0.6, linestyle="--", label='upper bound')
     ax1.plot(I, droprate_graph_1 , color=colors[0])
@@ -290,25 +298,47 @@ def simulate_fn(i):
     ## Plot current droprate [specific point]
     droprates = m.questingDropRates(day=day, num_legions_questing=N, section=section)
 
-    t5_in_pool = m.treasures_in_pool[day]['t5']
-    t4_in_pool = m.treasures_in_pool[day]['t4']
-    t3_in_pool = m.treasures_in_pool[day]['t3']
+    if section == 2 or section == 1:
+        t5_in_pool = m.treasures_in_pool[day]['t5']
+        t4_in_pool = m.treasures_in_pool[day]['t4']
+        t3_in_pool = m.treasures_in_pool[day]['t3']
 
-    t5_droprate = droprates['t5_droprate']
-    t4_droprate = droprates['t4_droprate']
-    t3_droprate = droprates['t3_droprate']
+        t5_droprate = droprates['t5_droprate']
+        t4_droprate = droprates['t4_droprate']
+        t3_droprate = droprates['t3_droprate']
 
-    ax1.plot([N], [t5_droprate],
-        label=r"Pr(T5 | k={:.0f}) = {:.1%}".format(t5_in_pool, t5_droprate),
-        color=colors[0], linestyle="-", marker="*")
+        ax1.plot([N], [t5_droprate],
+            label=r"Pr(T5 | k={:.0f}) = {:.1%}".format(t5_in_pool, t5_droprate),
+            color=colors[0], linestyle="-", marker="*")
 
-    ax1.plot([N], [t4_droprate],
-        label=r"Pr(T4 | k={:.0f}) = {:.1%}".format(t4_in_pool, t4_droprate),
-        color=colors[1], linestyle="-", marker="*")
+        ax1.plot([N], [t4_droprate],
+            label=r"Pr(T4 | k={:.0f}) = {:.1%}".format(t4_in_pool, t4_droprate),
+            color=colors[1], linestyle="-", marker="*")
 
-    ax1.plot([N], [t3_droprate],
-        label=r"Pr(T3 | k={:.0f}) = {:.1%}".format(t3_in_pool, t3_droprate),
-        color=colors[2], linestyle="-", marker="*")
+        ax1.plot([N], [t3_droprate],
+            label=r"Pr(T3 | k={:.0f}) = {:.1%}".format(t3_in_pool, t3_droprate),
+            color=colors[2], linestyle="-", marker="*")
+
+    elif section == 3:
+        t3_in_pool = m.treasures_in_pool[day]['t3']
+        t2_in_pool = m.treasures_in_pool[day]['t2']
+        t1_in_pool = m.treasures_in_pool[day]['t1']
+
+        t3_droprate = droprates['t3_droprate']
+        t2_droprate = droprates['t2_droprate']
+        t1_droprate = droprates['t1_droprate']
+
+        ax1.plot([N], [t3_droprate],
+            label=r"Pr(T3 | k={:.0f}) = {:.1%}".format(t3_in_pool, t3_droprate),
+            color=colors[0], linestyle="-", marker="*")
+
+        ax1.plot([N], [t2_droprate],
+            label=r"Pr(T2 | k={:.0f}) = {:.1%}".format(t2_in_pool, t2_droprate),
+            color=colors[1], linestyle="-", marker="*")
+
+        ax1.plot([N], [t1_droprate],
+            label=r"Pr(T1 | k={:.0f}) = {:.1%}".format(t1_in_pool, t1_droprate),
+            color=colors[2], linestyle="-", marker="*")
 
     # ####### change in growth rate, vs population
     # ax2.plot(N, growth_rate_1, color=colors[0])
