@@ -31,14 +31,16 @@ class MasterOfTreasureInflation:
                 't5': 0,
             }
         }
+
+        initialParam = 1
         self.treasures_in_pool = {
             # set initial treasure fragment amounts in pool for day 0
             0: {
-                't1': 1000,
-                't2': 2000,
-                't3': 4000,
-                't4': 6000,
-                't5': 8000,
+                't1': 1000 * initialParam,
+                't2': 2000 * initialParam,
+                't3': 4000 * initialParam,
+                't4': 6000 * initialParam,
+                't5': 8000 * initialParam,
             }
         }
 
@@ -186,7 +188,7 @@ def incrementLegionsQuesting(amount=20):
 def decrementLegionsQuesting(amount=20):
     return -amount
 
-LEGIONS_QUESTING = 1000
+LEGIONS_QUESTING = 4000
 
 
 def maybe_drop_loot(pr_threshold):
@@ -243,7 +245,7 @@ def init_plot(i=0):
 def simulate_fn(i):
 
     day = i
-    section = 3 # questing section
+    section = 2 # questing section
 
     global LEGIONS_QUESTING
     if day > 50 and day <= 150:
