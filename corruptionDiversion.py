@@ -1,6 +1,6 @@
 
 
-
+# Corruption leaks into Bridgeworld buildings every second over time at base_rate
 base_rate = 2000
 
 corruption_rate = {
