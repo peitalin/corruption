@@ -1,6 +1,8 @@
 
 import numpy as np
-
+from parameters import corruption_rate, amount_corruption_removed, dark_prism_drop_rates
+from parameters import percent_corr_forged_by_legion, harvester_age, default_initial_balances
+from parameters import initial_corruption_balances, harvester_list
 
 
 class CorruptionAccountant:
@@ -12,10 +14,6 @@ class CorruptionAccountant:
         self.y_structures = [
             "questing",
             "crafting",
-            "summoning",
-            "forbidden_crafts",
-            # "smolvasion",
-            # "bridgehammer",
             'h1',
             'h2',
             'h3',
@@ -23,14 +21,10 @@ class CorruptionAccountant:
             'h5',
             'h6',
             'h7',
-            'h8',
-            'h9',
         ]
         self.y_corruption = {
             "questing": [],
             "crafting": [],
-            "summoning": [],
-            "forbidden_crafts": [],
             'h1': [],
             'h2': [],
             'h3': [],
@@ -38,57 +32,21 @@ class CorruptionAccountant:
             'h5': [],
             'h6': [],
             'h7': [],
-            'h8': [],
-            'h9': [],
         }
-        # base rate per hour
-        base_rate = 4000
-        self.corruption_rate = {
-            "questing": base_rate,
-            "crafting": base_rate,
-            "summoning": base_rate,
-            "forbidden_crafts": base_rate,
-            'h1': base_rate/3,
-            'h2': base_rate/3,
-            'h3': base_rate/3,
-            'h4': base_rate/3,
-            'h5': base_rate/3,
-            'h6': base_rate/3,
-            'h7': base_rate/3,
-            'h8': base_rate/3,
-            'h9': base_rate/3,
+        self.corruption_rate = corruption_rate
+
+        self.amount_corruption_removed = amount_corruption_removed
+
+        self.y_harvester_dmg = {
+            'h1': [],
+            'h2': [],
+            'h3': [],
+            'h4': [],
+            'h5': [],
+            'h6': [],
+            'h7': [],
         }
-        # Each time you remove corruption, you remove 4000 corruption.
-        # So this requires 1 Prism per building per hour.
 
-        # For Questing, Summoning, Crafting, 3x Harvesters, this equals:
-        # • 4 prisms per hour:
-        # • 96 Prisms/day
-        # • 672 Prisms/week.
-
-        # Each Prism crafted breaks an expected 0.61 T5 Treasure.
-
-        # This is equal to:
-        # • ~410 T5 Treasures/week
-        # • ~5k T5 Fragments/week
-
-        # Which is roughly equal to all T5 fragments emitted once the capped Treasure emissions are in place (20k/month)
-
-        self.amount_corruption_removed = {
-            "questing": 4000,
-            "crafting": 4000,
-            "summoning": 4000,
-            "forbidden_crafts": 4000,
-            'h1': 4000,
-            'h2': 4000,
-            'h3': 4000,
-            'h4': 4000,
-            'h5': 4000,
-            'h6': 4000,
-            'h7': 4000,
-            'h8': 4000,
-            'h9': 4000,
-        }
         self.y_prisms = {
             0: 0,
         }
@@ -107,91 +65,39 @@ class CorruptionAccountant:
         self.y_crafted_corruption = {
             0: 0,
         }
-        self.y_cumulative_crafted_corruption = {
+        self.y_total_circulating_corruption = {
             0: 0,
         }
 
 
-    def getCorruptionLevel(self, c):
-        if c > 600_000:
-            return 6
-        elif c > 500_000:
-            return 5
-        elif c > 400_000:
-            return 4
-        elif c > 300_000:
-            return 3
-        elif c > 200_000:
-            return 2
-        elif c > 100_000:
-            return 1
-        else:
-            return 0
-
-
     def getDarkPrismDropRate(self, c):
-        cLevel = self.getCorruptionLevel(c)
-        if cLevel == 6:
-            return 0.5
-        if cLevel == 5:
-            return 0.35
-        if cLevel == 4:
-            return 0.25
-        if cLevel == 3:
-            return 0.15
-        if cLevel == 2:
-            return 0.1
-        if cLevel == 1:
-            return 0.05
+        cLevel = getCorruptionLevel(c)
+        if cLevel <= 6:
+            return dark_prism_drop_rates[cLevel]
         else:
-            return 0
+            return dark_prism_drop_rates[6]
 
 
-    def getNumTimesTryRemoveCorruption(self, c):
-        cLevel = self.getCorruptionLevel(c)
-        base_rate = 1
-        n = base_rate
-        ## this is an assumption, for simulation purposes only
-        if cLevel == 6:
-            n = base_rate * 6
-        elif cLevel == 5:
-            n = base_rate * 5
-        elif cLevel == 4:
-            n = base_rate * 4
-        elif cLevel == 3:
-            n = base_rate * 3
-        elif cLevel == 2:
-            n = base_rate * 2
-        elif cLevel == 1:
-            n = base_rate * 1
-        else:
-            n = base_rate
-        return n
 
-
-    def emitCorruption(self, hour, initial_corruption_balance=90_000):
+    def emitCorruption(self, hour):
         # 1800 a hour = 302_400 a week per building
         for k in self.y_structures:
 
-            if hour == 0:
-                rate = initial_corruption_balance
-            else:
-                rate = self.corruption_rate[k]
+            rate = self.corruption_rate[k]
 
             if len(self.y_corruption[k]) > 0:
                 prev_value = self.y_corruption[k][-1]
-                self.y_corruption[k].append(prev_value + rate)
+                if prev_value <= 1_000_000:
+                    self.y_corruption[k].append(prev_value + rate)
             else:
-                self.y_corruption[k].append(rate)
+                self.y_corruption[k].append(initial_corruption_balances[k])
 
 
     def emitForgeableCorruption(self, hour, rate=8000):
-
         if hour == 0:
             prev_value = 0
         else:
             prev_value = self.y_forgeable_corruption[hour-1]
-
         self.y_forgeable_corruption[hour] = prev_value + rate
 
 
@@ -202,12 +108,16 @@ class CorruptionAccountant:
 
 
     def maybeRemoveCorruptionNTimes(self, hour, k):
-        PR_REMOVE_CORRUPTION = 0.5
-        # PR_REMOVE_CORRUPTION = 1
+
+        if isHarvester(k):
+            PR_REMOVE_CORRUPTION = 0.2
+        else:
+            PR_REMOVE_CORRUPTION = 0.1
+
         current_corruption = self.y_corruption[k][hour]
         # do this x times, depending on how high corruption is
-        ntimes = self.getNumTimesTryRemoveCorruption(current_corruption)
-        randScores = [np.random.uniform(0,100) for x in range(ntimes)]
+        ntimes = getNumTimesTryRemoveCorruption(current_corruption)
+        randScores = drawProbabilities(ntimes)
 
         for score in randScores:
             if current_corruption <= 20_000:
@@ -220,18 +130,7 @@ class CorruptionAccountant:
 
     def forgeCorruption(self, hour, legionType="gen0_common"):
 
-        percentForgedByLegion = {
-            'gen0_1_1': 0.07, # 1/1 7%
-            'gen0_rare': 0.03, # all-class 3%
-            'gen0_uncommon': 0.02, # Assasin etc 2%
-            'gen0_special': 0.0175, # includes riverman, Numeraire 1.75%
-            'gen0_common': 0.015, # commons 1.5%
-            'gen1_rare': 0.01, # 1.1%
-            'gen1_uncommon': 0.0105, # 1.05%
-            'gen1_common': 0.01, # 1%
-        }
-
-        percentForgeable = percentForgedByLegion[legionType]
+        percentForgeable = percent_corr_forged_by_legion[legionType]
 
         if hour not in self.y_forgeable_corruption.keys():
             print("hour entry not in y_forgeable_corruption")
@@ -245,7 +144,7 @@ class CorruptionAccountant:
 
                 self.y_forgeable_corruption[hour] -= amountForged
                 self.y_crafted_corruption[hour] += amountForged
-                self.y_cumulative_crafted_corruption[hour] += amountForged
+                self.y_total_circulating_corruption[hour] += amountForged
 
 
     def addAccountingEntriesForHour(self, hour):
@@ -253,33 +152,33 @@ class CorruptionAccountant:
 
         # time-series
         if hour not in self.y_dark_prisms.keys():
-            self.y_dark_prisms[hour] = 0
+            self.y_dark_prisms[hour] = default_initial_balances["y_dark_prisms"]
 
         if hour not in self.y_prisms.keys():
-            self.y_prisms[hour] = 0
+            self.y_prisms[hour] = default_initial_balances["y_prisms"]
 
         if hour not in self.y_forgeable_corruption.keys():
-            self.y_forgeable_corruption[hour] = 0
+            self.y_forgeable_corruption[hour] = default_initial_balances["y_forgeable_corruption"]
 
         if hour not in self.y_crafted_corruption.keys():
-            self.y_crafted_corruption[hour] = 0
+            self.y_crafted_corruption[hour] = default_initial_balances["y_crafted_corruption"]
 
         # cumulative time-series
-        if hour not in self.y_cumulative_crafted_corruption.keys():
+        if hour not in self.y_total_circulating_corruption.keys():
             if hour == 0:
-                self.y_cumulative_crafted_corruption[hour] = 0
+                self.y_total_circulating_corruption[hour] = default_initial_balances["y_total_circulating_corruption"]
             else:
-                self.y_cumulative_crafted_corruption[hour] = self.y_cumulative_crafted_corruption[hour-1]
+                self.y_total_circulating_corruption[hour] = self.y_total_circulating_corruption[hour-1]
 
         if hour not in self.y_dark_prisms_cumulative.keys():
             if hour == 0:
-                self.y_dark_prisms_cumulative[hour] = 0
+                self.y_dark_prisms_cumulative[hour] = default_initial_balances["y_dark_prisms_cumulative"]
             else:
                 self.y_dark_prisms_cumulative[hour] = self.y_dark_prisms_cumulative[hour-1]
 
         if hour not in self.y_prisms_cumulative.keys():
             if hour == 0:
-                self.y_prisms_cumulative[hour] = 0
+                self.y_prisms_cumulative[hour] = default_initial_balances["y_prisms_cumulative"]
             else:
                 self.y_prisms_cumulative[hour] = self.y_dark_prisms_cumulative[hour-1]
 
@@ -310,10 +209,170 @@ class CorruptionAccountant:
                 self.y_dark_prisms[hour] = self.y_dark_prisms[hour] + 1
                 self.y_dark_prisms_cumulative[hour] = self.y_dark_prisms_cumulative[hour] + 1
 
+            # Forge Corruption is Dark prism created
             self.forgeCorruption(hour)
+            # Then maybe use Corruption against other harvesters
+            self.maybeCastCorruption(hour)
         else:
             # no Dark Prism created from Prism, skip
             return None
 
 
+    def calcHarvestersDmg(self, hour=0):
+        # check corruption level for a building
+        # incrementa dmg based on corruption level every tick
+        for k in self.y_structures:
+            if isHarvester(k):
+                if hour == 0:
+                    dmg_amount = 0
+                else:
+                    current_corruption = self.y_corruption[k][hour]
+                    cLevel = getCorruptionLevel(current_corruption)
+                    dmg_amount = getDmgAmount(cLevel, k)
 
+                if len(self.y_harvester_dmg[k]) == 0:
+                    self.y_harvester_dmg[k].append(dmg_amount)
+                else:
+                    prev_value = self.y_harvester_dmg[k][-1]
+                    self.y_harvester_dmg[k].append(prev_value + dmg_amount)
+
+
+    def maybeCastCorruption(self, hour=0):
+
+        randomHarvester = drawRandomHarvester()
+        currentCirculatingCorruption = self.y_total_circulating_corruption[hour]
+
+        if currentCirculatingCorruption > castCorruptionParameters['high']['corruption_level']:
+            maybeCastCorruption = np.random.uniform(0, 1) < castCorruptionParameters['high']['cast_probability']
+            sendCorruption = castCorruptionParameters['high']['amt_corruption']
+
+        elif currentCirculatingCorruption > castCorruptionParameters['medium']['corruption_level']:
+            maybeCastCorruption = np.random.uniform(0, 1) < castCorruptionParameters['medium']['cast_probability']
+            sendCorruption = castCorruptionParameters['high']['amt_corruption']
+
+        elif currentCirculatingCorruption > castCorruptionParameters['low']['corruption_level']:
+            maybeCastCorruption = np.random.uniform(0, 1) < castCorruptionParameters['low']['cast_probability']
+            sendCorruption = castCorruptionParameters['high']['amt_corruption']
+        else:
+            maybeCastCorruption = False
+            sendCorruption = 0
+
+        # add some randomness
+        sendCorruption = round(np.random.uniform(1, 1.5) * sendCorruption)
+
+        if maybeCastCorruption:
+            self.y_total_circulating_corruption[hour] -= sendCorruption
+            self.y_corruption[randomHarvester][-1] += sendCorruption
+
+
+
+castCorruptionParameters = {
+    # low corruption levels
+    "low": {
+        "corruption_level": 1_000_000,
+        "amt_corruption": 50_000,
+        "cast_probability": 0.05,
+    },
+    # medium corruption levels
+    "medium": {
+        "corruption_level": 1_500_000,
+        "amt_corruption": 200_000,
+        "cast_probability": 0.1,
+    },
+    # high corruption levels
+    "high": {
+        "corruption_level": 2_000_000,
+        "amt_corruption": 400_000,
+        "cast_probability": 0.5,
+    },
+}
+
+
+
+def drawRandomHarvester():
+    return harvester_list[np.random.randint(0, 7)]
+
+
+def drawProbabilities(ntimes=1):
+    return [np.random.uniform(0,100) for x in range(ntimes)]
+
+
+def isHarvester(k):
+    return k in harvester_list
+
+
+def getDmgAmount(cLevel, harvester):
+
+    ## only for harvesters
+    age = harvester_age[harvester]
+    h = age * 2
+
+    if cLevel == 6:
+        n = 12 * h
+    elif cLevel == 5:
+        n = 10 * h
+    elif cLevel == 4:
+        n = 8 * h
+    elif cLevel == 3:
+        n = 6 * h
+    elif cLevel == 2:
+        n = 4 * h
+    elif cLevel == 1:
+        n = 2 * h
+    else:
+        n = 1 * h
+    return n
+
+def getCorruptionLevel(c):
+    if c > 600_000:
+        return 6
+    elif c > 500_000:
+        return 5
+    elif c > 400_000:
+        return 4
+    elif c > 300_000:
+        return 3
+    elif c > 200_000:
+        return 2
+    elif c > 100_000:
+        return 1
+    else:
+        return 0
+
+
+def getNumTimesTryRemoveCorruption(c, k='harvester'):
+    cLevel = getCorruptionLevel(c)
+    n = 1
+    ## this is an assumption, for simulation purposes only
+    if isHarvester(k):
+        if cLevel == 6:
+            n = 12
+        elif cLevel == 5:
+            n = 8
+        elif cLevel == 4:
+            n = 6
+        elif cLevel == 3:
+            n = 4
+        elif cLevel == 2:
+            n = 2
+        elif cLevel == 1:
+            n = 1
+        else:
+            n = 0
+    else:
+        if cLevel == 6:
+            n = 6
+        elif cLevel == 5:
+            n = 5
+        elif cLevel == 4:
+            n = 4
+        elif cLevel == 3:
+            n = 3
+        elif cLevel == 2:
+            n = 2
+        elif cLevel == 1:
+            n = 1
+        else:
+            n = 0
+
+    return n

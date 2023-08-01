@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot
 from matplotlib.animation import FuncAnimation
 
-from corruptionAccountant import CorruptionAccountant
+from corruptionAccountant import CorruptionAccountant, isHarvester
 from styles import brown, offwhite, grey, gold, darkblue, lightblue
-from styles import line_styles, line_colors
+from styles import line_styles, line_colors, harvester_linestyles
 
 
 # initialize plot variables, overwritten on 1st pass of simulation
@@ -24,7 +24,7 @@ ax3 = 1
 ## x-axis is hours
 hours = []
 # each frame is 1 hr
-FRAMES = 1000
+FRAMES = 2000
 
 
 
@@ -49,6 +49,7 @@ def simulation_fn(i):
     corrAccountant.emitCorruption(hour)
     corrAccountant.emitForgeableCorruption(hour)
     corrAccountant.addAccountingEntriesForHour(hour)
+    corrAccountant.calcHarvestersDmg(hour)
 
     for k in corrAccountant.y_structures:
 
@@ -62,46 +63,64 @@ def simulation_fn(i):
             label="{k}".format(k=k),
             color=line_colors[k],
         )
+        ax1.set(xlabel='', ylabel='corruption level')
+        ax1.grid(color='grey', linestyle='-', linewidth=0.5, alpha=0.5)
 
 
     ## Plot 2 - Prisms Burnt, and Dark Prisms created
-    ax2.plot(
-        hours,
-        corrAccountant.y_prisms.values(),
-        label="Prisms Burnt",
-        color='royalblue',
-        linestyle="--",
-    )
-    ax2.plot(
-        hours,
-        corrAccountant.y_dark_prisms.values(),
-        label="Dark Prisms",
-        color='crimson',
-        linestyle="--",
-    )
-    ax2.set(xlabel='', ylabel='#Prisms and #Dark_Prisms')
+    # ax2.plot(
+    #     hours,
+    #     corrAccountant.y_prisms.values(),
+    #     label="Prisms Burnt",
+    #     color='royalblue',
+    #     linestyle="--",
+    # )
+    # ax2.plot(
+    #     hours,
+    #     corrAccountant.y_dark_prisms.values(),
+    #     label="Dark Prisms",
+    #     color='crimson',
+    #     linestyle="--",
+    # )
+    # ax2.set(xlabel='', ylabel='#Prisms and #Dark_Prisms')
+
+    ### Harvester Damage
+    for k in corrAccountant.y_structures:
+        if isHarvester(k):
+            ax2.plot(
+                hours,
+                corrAccountant.y_harvester_dmg[k],
+                label="{} Damage".format(k),
+                color='crimson',
+                linestyle=harvester_linestyles[k],
+                alpha=0.4,
+            )
+            ax2.set(xlabel='', ylabel='Harvester Damage')
+            ax2.grid(color='grey', linestyle='-', linewidth=0.5, alpha=0.5)
 
     #### Plot 3 - Amount of Corruption in forbidden crafts forgeable pool
     ax3.plot(
         hours,
         corrAccountant.y_forgeable_corruption.values(),
-        label="Total Corruption Forgeable",
+        label="Total Forgeable Corruption ",
         color='royalblue',
         linestyle=":",
     )
     ax3.plot(
         hours,
         # corrAccountant.y_crafted_corruption.values(),
-        corrAccountant.y_cumulative_crafted_corruption.values(),
-        label="Cumulative Corruption Crafted",
-        color='crimson',
-        linestyle=":",
+        corrAccountant.y_total_circulating_corruption.values(),
+        label="Circulating Forged Corruption",
+        color='purple',
+        linestyle="-",
     )
     ax3.set(xlabel='hours', ylabel='Corruption Forged')
+    ax3.grid(color='grey', linestyle='-', linewidth=0.5, alpha=0.5)
 
-    ax1.set_title('Corruption in Buildings', size=10, color=gold)
-    ax2.set_title('Prisms Burnt & Dark Prisms Created', size=10, color=gold)
-    ax3.set_title('Cumulative Corruption Forged', size=10, color=gold)
+    ax1.set_title('Corruption in Harvesters and BW', size=10, color=gold)
+    # ax2.set_title('Prisms Burnt and Malevolent Prisms Created', size=10, color=gold)
+    ax2.set_title('Harvester Damage Accumulated over Time', size=10, color=gold)
+    ax3.set_title('Total Corruption Circulating', size=10, color=gold)
 
     ax1.legend(bbox_to_anchor=(1.3, 1.1), loc="upper right")
     ax2.legend(

@@ -45,8 +45,8 @@ def drop_loot_tiers(lvl='easy'):
 
 
 TREASURE_BREAK_PR = {
-    "grin": 0.0,
-    "honeycomb": 0.0,
+    "grin": 0.001,
+    "honeycomb": 0.001,
     "t1": 0.027,
     "t2": 0.054,
     "t3": 0.069,

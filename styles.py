@@ -44,3 +44,14 @@ grey = '#a6a8ab'
 gold = '#a48955'
 darkblue = '#0e171b'
 lightblue = '#182329'
+
+
+harvester_linestyles = {
+    "h1": '-',
+    "h2": '--',
+    "h3": '--',
+    "h4": '-.',
+    "h5": '-.',
+    "h6": ':',
+    "h7": ':',
+}
