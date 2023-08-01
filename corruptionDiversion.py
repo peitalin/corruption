@@ -1,6 +1,5 @@
 
 from parameters import corruption_rate
-# num_legions = 22_000
 
 
 def divertCorruptionBetweenBuildings():
